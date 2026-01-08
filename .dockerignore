@@ -1,0 +1,10 @@
+node_modules/
+auth/
+config.yaml
+*.log
+.env
+.git/
+.gitignore
+README.md
+*.md
+

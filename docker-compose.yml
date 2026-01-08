@@ -1,0 +1,48 @@
+services:
+  whatsapp-api:
+    build: .
+    container_name: whatsapp-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json:ro
+      - ./config.yaml:/app/config.yaml:ro
+      - node_modules:/app/node_modules
+    environment:
+      - NODE_ENV=production
+      - CONFIG_PATH=/app/config.yaml
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: whatsapp-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    expose:
+      - "6379"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  node_modules:
+  redis_data:

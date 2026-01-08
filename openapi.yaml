@@ -1,0 +1,203 @@
+openapi: 3.0.3
+info:
+  title: WhatsApp API Wrapper
+  description: Minimal WhatsApp API Wrapper using Baileys
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key that identifies the WhatsApp instance
+
+  schemas:
+    SendMessageRequest:
+      type: object
+      required:
+        - to
+        - message
+      properties:
+        to:
+          type: string
+          pattern: '^\+\d{10,15}$'
+          example: "+49111111111"
+          description: Recipient phone number in E.164 format
+        message:
+          type: string
+          example: "Hallo Welt"
+          description: Message text to send
+
+    SendMessageResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [sent]
+          example: sent
+        to:
+          type: string
+          example: "+49111111111"
+
+    WebhookPayload:
+      type: object
+      description: Payload sent to configured webhook on incoming messages
+      properties:
+        from:
+          type: string
+          example: "49111111111@s.whatsapp.net"
+          description: Sender JID
+        to:
+          type: string
+          example: "+49123456789"
+          description: Recipient phone number (your instance)
+        text:
+          type: string
+          example: "Hallo"
+          description: Message text
+        timestamp:
+          type: integer
+          example: 1710000000
+          description: Unix timestamp
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Missing X-API-Key header"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /send:
+    post:
+      summary: Send WhatsApp message
+      description: |
+        Send a WhatsApp message from the instance identified by the API key.
+        The sender number is determined by the API key - clients cannot specify it.
+      operationId: sendMessage
+      tags:
+        - Messages
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+            examples:
+              simple:
+                summary: Simple text message
+                value:
+                  to: "+49111111111"
+                  message: "Hallo Welt"
+      responses:
+        '200':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingTo:
+                  value:
+                    error: 'Missing or invalid "to" field'
+                invalidPhone:
+                  value:
+                    error: 'Invalid phone number format for "to"'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingKey:
+                  value:
+                    error: "Missing X-API-Key header"
+                invalidKey:
+                  value:
+                    error: "Invalid API key"
+        '503':
+          description: WhatsApp session not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "WhatsApp session not connected"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to send message"
+
+  /health:
+    get:
+      summary: Health check
+      description: Check if the API is running
+      operationId: healthCheck
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+webhooks:
+  incomingMessage:
+    post:
+      summary: Incoming message webhook
+      description: |
+        Called when a WhatsApp message is received.
+        Configure the webhook URL in config.yaml per instance.
+        Optional HTTP Basic Auth is supported.
+        
+        Retry behavior:
+        - 3 attempts
+        - Exponential backoff (1s, 2s, 4s)
+        - Logged on permanent failure
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+            example:
+              from: "49111111111@s.whatsapp.net"
+              to: "+49123456789"
+              text: "Hallo"
+              timestamp: 1710000000
+      responses:
+        '200':
+          description: Webhook received successfully
+

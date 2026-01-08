@@ -1,0 +1,11 @@
+instances:
+  - phone_number: "+49123456789"
+    api_key: "secret-key-1"
+    webhook:
+      url: "https://example.com/webhook"
+      basic_auth:
+        username: "user"
+        password: "pass"
+
+  - phone_number: "+49987654321"
+    api_key: "secret-key-2"

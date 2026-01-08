@@ -1,0 +1,6 @@
+node_modules/
+auth/
+config.yaml
+*.log
+.env
+.DS_Store
